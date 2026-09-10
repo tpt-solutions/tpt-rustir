@@ -1,0 +1,14 @@
+[package]
+name = "tpt-rustir-syntax"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "Surface syntax, parser, and pretty-printer for the tpt proof language."
+
+[dependencies]
+tpt-rustir-core = { workspace = true }
+chumsky = "0.9"

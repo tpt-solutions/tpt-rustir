@@ -1,0 +1,26 @@
+[workspace]
+resolver = "2"
+members = [
+    "tpt-rustir-core",
+    "tpt-rustir-syntax",
+    "tpt-rustir-solver",
+    "tpt-rustir-mir",
+    "tpt-rustir-macros",
+    "tpt-rustir-cli",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+authors = ["TPT Solutions"]
+repository = "https://github.com/tpt-solutions/tpt-rustir"
+keywords = ["dependent-types", "formal-verification", "mir", "theorem-prover"]
+categories = ["development-tools", "compilers"]
+
+[workspace.dependencies]
+tpt-rustir-core = { path = "tpt-rustir-core", version = "0.1.0" }
+tpt-rustir-syntax = { path = "tpt-rustir-syntax", version = "0.1.0" }
+tpt-rustir-solver = { path = "tpt-rustir-solver", version = "0.1.0" }
+tpt-rustir-mir = { path = "tpt-rustir-mir", version = "0.1.0" }
+tpt-rustir-macros = { path = "tpt-rustir-macros", version = "0.1.0" }

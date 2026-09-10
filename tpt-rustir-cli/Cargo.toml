@@ -1,0 +1,19 @@
+[package]
+name = "tpt-rustir-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "cargo-tpt: the command-line interface for tpt-rustir."
+
+[[bin]]
+name = "cargo-tpt"
+path = "src/main.rs"
+
+[dependencies]
+tpt-rustir-core = { workspace = true }
+tpt-rustir-syntax = { workspace = true }
+clap = { version = "4", features = ["derive"] }

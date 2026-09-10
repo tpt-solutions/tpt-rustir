@@ -1,0 +1,97 @@
+tpt-rustir Design Specification
+Version: 0.1.0-draft
+Date: September 10, 2026
+Status: Proposal / Architecture Phase
+1. Purpose and Vision
+tpt-rustir (Typed Predicate Theory - Rust Intermediate Representation) is a next-generation formal verification and dependent type system designed natively for the Rust ecosystem.
+While existing tools like Lean or Coq offer immense logical power, they require translating Rust into separate, purely functional languages, losing context of Rust's memory model. Conversely, existing Rust verifiers (like Flux or Creusot) are highly specialized but often lack the deep, composable mathematical expressiveness of full dependent types.
+The purpose of tpt-rustir is to bridge this gap. It provides a lightweight, dependent-type-theoretic core that integrates directly with Rust's Mid-level Intermediate Representation (MIR). It leverages Rust's native linear/affine types for stateful verification, uses E-graphs for blazing-fast proof automation, and extracts verified code with zero garbage-collection overhead.
+Core Philosophy
+MIR-Native: We do not translate Rust to a foreign language. We verify the actual execution model of Rust via stable_mir.
+E-Graph Automation: We replace slow, unpredictable SMT-only solving with Equality Saturation (via egg) for deterministic, fast automation.
+Zero-Cost Extraction: Verified code compiles to standard, highly-optimized Rust with no runtime proof-checking overhead and no garbage collector.
+Cargo-First: The tool lives inside Cargo.toml. Proofs are written alongside code using procedural macros.
+2. Architecture and Crate Breakdown
+The project is structured as a Cargo workspace. All crates share the tpt-rustir- prefix to ensure clear namespace ownership and modularity.
+2.1. tpt-rustir-core
+The Mathematical Kernel. This is the tiny, trusted core of the system. It contains no automation and no Rust-specific logic; it only knows the rules of logic.
+Responsibilities:
+Implements the Calculus of Constructions (CoC) with Inductive Families.
+Bidirectional type-checking (inference and checking).
+Term reduction engine (beta, delta, and iota reduction).
+Conversion checking (definitional equality).
+Key Rust Challenges: Implementing De Bruijn indices or locally-nameless representations without fighting the borrow checker. Utilizing hash-consing for memory-efficient AST representation.
+2.2. tpt-rustir-syntax
+The Frontend and AST. Handles the parsing, pretty-printing, and concrete syntax tree (CST) to abstract syntax tree (AST) lowering.
+Responsibilities:
+Defines the surface syntax for the tpt proof language.
+Implements a parser (likely using chumsky or lalrpop).
+Provides an AST-to-Core lowering phase.
+Generates human-readable error messages and proof-state pretty-printing for the REPL/IDE.
+2.3. tpt-rustir-solver
+The Automation Engine. This is where tpt-rustir achieves its "lighter and faster" goals compared to traditional theorem provers.
+Responsibilities:
+E-Graph Integration: Uses the egg crate to perform Equality Saturation. This allows the system to explore exponentially many equivalent proof paths simultaneously in a compressed data structure.
+SMT Fallback: Interfaces with the z3 crate for discharging complex arithmetic or bitvector obligations that e-graphs cannot solve natively.
+Tactic Engine: A DSL for composing proof tactics (e.g., simp, auto, induction) that drive the solver.
+2.4. tpt-rustir-mir
+The Rust Bridge. The most critical crate for integrating with the Rust ecosystem. This crate interfaces directly with the Rust compiler's internals.
+Responsibilities:
+Ingests Rust code via the stable_mir (Stable Mid-level Intermediate Representation) API.
+Maps Rust types, lifetimes, and borrow-checker states into the tpt-rustir-core type theory.
+Extraction: Translates verified tpt terms back into Rust AST/MIR, ensuring that the extracted code respects Rust's ownership model (e.g., translating dependent pairs into standard Rust tuples or structs).
+Verifies that Rust's unsafe blocks are properly justified by the logical proofs.
+2.5. tpt-rustir-macros
+The User-Facing API. Procedural macros that allow developers to write specifications directly in their Rust code.
+Responsibilities:
+Provides the #[tpt::spec(...)] and #[tpt::verify] attribute macros.
+Intercepts Rust function signatures, parses the logical predicates, and passes them to tpt-rustir-core for checking.
+Handles the injection of proof obligations into the build pipeline.
+2.6. tpt-rustir-cli
+The Command Line Interface. The binary that developers interact with directly.
+Responsibilities:
+Provides the cargo tpt subcommand (via cargo-subcommand architecture).
+Manages caching of proof states (so you don't re-verify unchanged code).
+Formats and outputs verification results to the terminal in a CI-friendly format.
+3. User Experience Example
+The ultimate goal is that a Rust developer can use tpt-rustir without leaving their IDE or learning a completely new language.
+
+// In Cargo.toml:
+// [dev-dependencies]
+// tpt-rustir-macros = "0.1.0"
+
+use tpt_rustir_macros::spec;
+
+// The user writes a standard Rust function, but adds a TPT specification.
+#[spec(fn(i32[@a], i32[@b]) -> i32[c] requires a > 0 && b > 0 ensures c == a + b)]
+pub fn add_positive(a: i32, b: i32) -> i32 {
+    a + b
+}
+
+// The CLI (`cargo tpt check`) will use `tpt-rustir-mir` to analyze the MIR 
+// of `add_positive`, and `tpt-rustir-solver` to automatically discharge 
+// the proof obligation that `a + b` satisfies the post-condition.
+
+4. Implementation Roadmap
+To ensure the project is actually finished and not just an endless research rabbit hole, development will proceed in strict phases.
+Phase 1: The Kernel (Months 1-3)
+Goal: A working, standalone REPL for the core type theory.
+Deliverables: tpt-rustir-core and tpt-rustir-syntax.
+Milestone: Can parse and type-check basic lambda calculus, dependent pairs (Sigma), and dependent functions (Pi).
+Phase 2: The Automation (Months 4-5)
+Goal: Stop writing proofs by hand.
+Deliverables: tpt-rustir-solver.
+Milestone: Integrate egg. Write a tactic that can automatically prove basic algebraic equalities and logical implications without user intervention.
+Phase 3: The Rust Bridge (Months 6-8)
+Goal: Connect the prover to actual Rust code.
+Deliverables: tpt-rustir-mir and tpt-rustir-macros.
+Milestone: Successfully verify a simple Rust function (like a safe binary search or a bounded vector) using stable_mir and proc-macros.
+Phase 4: The Cargo Integration (Month 9)
+Goal: Make it usable in the real world.
+Deliverables: tpt-rustir-cli.
+Milestone: Run cargo tpt verify on a small workspace and get a clean, cached, CI-ready output.
+5. Out of Scope (For Now)
+To maintain focus, the following are explicitly out of scope for the initial 1.0 release:
+Full Mathlib Equivalent: We are not building a massive library of mathematical theorems. We are building the tool to verify systems code.
+Custom IDE/LSP: We will rely entirely on rust-analyzer for IDE support. The macros will be designed to be as transparent to rust-analyzer as possible.
+Modifying rustc: We will strictly use stable_mir and public compiler APIs. We will not fork the Rust compiler.
