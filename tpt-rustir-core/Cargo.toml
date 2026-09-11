@@ -5,9 +5,10 @@ edition.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
-keywords.workspace = true
-categories.workspace = true
+keywords = ["dependent-types", "type-theory", "theorem-prover", "kernel", "inductive-types"]
+categories = ["mathematics", "algorithms"]
 description = "The trusted mathematical kernel of tpt-rustir: Calculus of Constructions with inductive families."
+readme = "README.md"
 
 [dependencies]
 

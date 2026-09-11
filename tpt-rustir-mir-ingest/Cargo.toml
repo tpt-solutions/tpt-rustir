@@ -1,0 +1,10 @@
+[package]
+name = "tpt-rustir-mir-ingest"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+publish = false
+description = "Real stable_mir (rustc_public) ingestion for tpt-rustir-mir. Not a workspace member: requires a pinned nightly with rustc-dev/llvm-tools and is not publishable to crates.io."
+
+[dependencies]
+tpt-rustir-mir = { path = "../tpt-rustir-mir" }

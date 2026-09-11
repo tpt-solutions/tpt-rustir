@@ -23,6 +23,12 @@ pub enum ExprKind {
     Pair(Box<Expr>, Box<Expr>),
     Let(String, Box<Expr>, Box<Expr>, Box<Expr>),
     Ann(Box<Expr>, Box<Expr>),
+    /// Inductive type declaration: `inductive Name (params) : Type where ...`
+    InductiveDecl(String, Vec<(String, Box<Expr>)>, Box<Expr>, Vec<Box<Expr>>),
+    /// Constructor application: `Name.constructor args...`
+    ConApp(String, String, Vec<Box<Expr>>),
+    /// Eliminator: `elim Name (motive) with | constructor => body ...`
+    Elim(String, Box<Expr>, Vec<(String, Box<Expr>)>),
 }
 
 impl Expr {

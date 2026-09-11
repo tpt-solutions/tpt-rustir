@@ -5,15 +5,25 @@ edition.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
-keywords.workspace = true
-categories.workspace = true
+keywords = ["egraph", "smt", "equality-saturation", "tactics", "z3"]
+categories = ["algorithms", "mathematics"]
 description = "Proof automation: e-graph equality saturation and SMT fallback for tpt-rustir."
+readme = "README.md"
 
 [dependencies]
 tpt-rustir-core = { workspace = true }
+tpt-rustir-syntax = { workspace = true }
 egg = "0.9"
 z3 = { version = "0.12", optional = true }
 
 [features]
 default = []
 smt = ["dep:z3"]
+
+[package.metadata.docs.rs]
+# `smt` needs a system Z3/libclang install that docs.rs's sandbox doesn't
+# provide. docs.rs defaults to building with `--all-features`, which would
+# otherwise try (and fail) to build this crate with `smt` enabled; pin it to
+# the default (empty) feature set instead.
+features = []
+no-default-features = false

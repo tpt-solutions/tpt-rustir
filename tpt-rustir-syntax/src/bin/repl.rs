@@ -14,7 +14,7 @@ use tpt_rustir_syntax::{lower, parser, pretty};
 
 fn main() {
     println!("tpt-rustir REPL — type an expression, or :quit to exit.");
-    let env = GlobalEnv::new();
+    let mut env = GlobalEnv::new();
     let ctx = Vec::new();
     let stdin = io::stdin();
     loop {
@@ -33,7 +33,7 @@ fn main() {
         }
 
         match parser::parse(line) {
-            Ok(expr) => match lower::lower(&lower::Scope::new(), &expr) {
+            Ok(expr) => match lower::lower(&lower::Scope::new(), &mut env, &expr) {
                 Ok(term) => match infer(&env, &ctx, &term) {
                     Ok(ty) => {
                         let nf = normalize(&env, &term);

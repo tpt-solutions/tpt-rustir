@@ -1,0 +1,7 @@
+[toolchain]
+# Pinned nightly (not stable): `tpt-rustir-mir`'s stable_mir ingestion needs
+# `rustc_private`, which links against rustc's own internal crates and is
+# only reachable on nightly via the `rustc-dev`/`llvm-tools` components below.
+# Bump this date deliberately (stable_mir's API can move between nightlies).
+channel = "nightly-2026-08-05"
+components = ["rustfmt", "clippy", "rustc-dev", "llvm-tools"]

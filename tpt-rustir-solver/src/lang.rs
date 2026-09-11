@@ -12,6 +12,7 @@ define_language! {
     pub enum Expr {
         "+" = Add([Id; 2]),
         "*" = Mul([Id; 2]),
+        "le" = Le([Id; 2]),
         "zero" = Zero,
         "succ" = Succ([Id; 1]),
         "and" = And([Id; 2]),
@@ -44,6 +45,12 @@ pub fn definitional_rules() -> Vec<Rw> {
         rw!("not-false"; "(not false)" => "true"),
         rw!("not-not"; "(not (not ?a))" => "?a"),
         rw!("implies-elim"; "(implies ?a ?b)" => "(or (not ?a) ?b)"),
+        // Structural rules for `le` (Nat ≤ Nat), mirroring the kernel's
+        // `stdlib` definition (is_zero of saturating minus): recursion on the
+        // first argument. Sound and terminating.
+        rw!("le-zero-l"; "(le zero ?a)" => "true"),
+        rw!("le-succ-zero"; "(le (succ ?a) zero)" => "false"),
+        rw!("le-succ-succ"; "(le (succ ?a) (succ ?b))" => "(le ?a ?b)"),
     ]
 }
 
@@ -61,8 +68,17 @@ pub fn algebraic_rules() -> Vec<Rw> {
         rw!("mul-assoc-rl"; "(* ?a (* ?b ?c))" => "(* (* ?a ?b) ?c)"),
         rw!("and-comm"; "(and ?a ?b)" => "(and ?b ?a)"),
         rw!("or-comm"; "(or ?a ?b)" => "(or ?b ?a)"),
+        rw!("and-assoc-lr"; "(and (and ?a ?b) ?c)" => "(and ?a (and ?b ?c))"),
+        rw!("and-assoc-rl"; "(and ?a (and ?b ?c))" => "(and (and ?a ?b) ?c)"),
+        rw!("or-assoc-lr"; "(or (or ?a ?b) ?c)" => "(or ?a (or ?b ?c))"),
+        rw!("or-assoc-rl"; "(or ?a (or ?b ?c))" => "(or (or ?a ?b) ?c)"),
+        rw!("de-morgan-and"; "(not (and ?a ?b))" => "(or (not ?a) (not ?b))"),
+        rw!("de-morgan-or"; "(not (or ?a ?b))" => "(and (not ?a) (not ?b))"),
         rw!("excluded-middle-l"; "(or (not ?a) ?a)" => "true"),
         rw!("excluded-middle-r"; "(or ?a (not ?a))" => "true"),
+        // `le` reflexivity: `a <= a` holds for every Nat `a`. Sound on Nat and
+        // terminating (it collapses a node to a constant).
+        rw!("le-refl"; "(le ?a ?a)" => "true"),
     ]);
     rules
 }

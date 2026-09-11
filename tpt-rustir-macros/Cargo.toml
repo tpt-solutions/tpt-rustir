@@ -5,9 +5,10 @@ edition.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
-keywords.workspace = true
-categories.workspace = true
+keywords = ["proc-macro", "attribute-macro", "formal-verification", "specification", "tpt"]
+categories = ["development-tools::procedural-macro-helpers"]
 description = "User-facing proc-macro API: #[tpt::spec(...)] and #[tpt::verify]."
+readme = "README.md"
 
 [lib]
 proc-macro = true
@@ -16,3 +17,6 @@ proc-macro = true
 syn = { version = "2", features = ["full", "extra-traits"] }
 quote = "1"
 proc-macro2 = "1"
+tpt-rustir-core = { workspace = true }
+tpt-rustir-syntax = { workspace = true }
+tpt-rustir-solver = { workspace = true }

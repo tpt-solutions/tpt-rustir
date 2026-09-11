@@ -23,6 +23,14 @@ pub enum TermKind {
     Pair(Term, Term, Term),
     Fst(Term),
     Snd(Term),
+    /// User-defined inductive type reference (name, parameter arguments)
+    Inductive(String, Vec<Term>),
+    /// Constructor application (inductive name, constructor name, args)
+    Con(String, String, Vec<Term>),
+    /// General eliminator/recursor for inductive types:
+    /// `IndRec(inductive_name, motive, cases, scrutinee)`
+    /// where `cases` is a vector of (constructor_name, case_body) pairs
+    IndRec(String, Term, Vec<(String, Term)>, Term),
     Nat,
     Zero,
     Succ(Term),
@@ -111,6 +119,36 @@ pub fn let_(ty: Term, val: Term, body: Term) -> Term {
     mk(TermKind::Let(ty, val, body))
 }
 
+pub fn inductive(name: impl Into<String>, params: Vec<Term>) -> Term {
+    mk(TermKind::Inductive(name.into(), params))
+}
+
+pub fn con(
+    inductive_name: impl Into<String>,
+    constructor_name: impl Into<String>,
+    args: Vec<Term>,
+) -> Term {
+    mk(TermKind::Con(
+        inductive_name.into(),
+        constructor_name.into(),
+        args,
+    ))
+}
+
+pub fn ind_rec(
+    inductive_name: impl Into<String>,
+    motive: Term,
+    cases: Vec<(String, Term)>,
+    scrutinee: Term,
+) -> Term {
+    mk(TermKind::IndRec(
+        inductive_name.into(),
+        motive,
+        cases,
+        scrutinee,
+    ))
+}
+
 /// Shift free (unbound-at-this-depth) variables in `t` by `amount`, treating
 /// indices `< cutoff` as bound within `t` itself and thus left alone.
 pub fn shift(t: &Term, cutoff: usize, amount: i64) -> Term {
@@ -142,6 +180,24 @@ pub fn shift(t: &Term, cutoff: usize, amount: i64) -> Term {
         ),
         TermKind::Fst(p) => fst(shift(p, cutoff, amount)),
         TermKind::Snd(p) => snd(shift(p, cutoff, amount)),
+        TermKind::Inductive(name, params) => inductive(
+            name.clone(),
+            params.iter().map(|p| shift(p, cutoff, amount)).collect(),
+        ),
+        TermKind::Con(ind_name, con_name, args) => con(
+            ind_name.clone(),
+            con_name.clone(),
+            args.iter().map(|a| shift(a, cutoff, amount)).collect(),
+        ),
+        TermKind::IndRec(ind_name, motive, cases, scrutinee) => ind_rec(
+            ind_name.clone(),
+            shift(motive, cutoff, amount),
+            cases
+                .iter()
+                .map(|(cname, cbody)| (cname.clone(), shift(cbody, cutoff + 1, amount)))
+                .collect(),
+            shift(scrutinee, cutoff, amount),
+        ),
         TermKind::Succ(n) => succ(shift(n, cutoff, amount)),
         TermKind::NatRec(m, b, s, t0) => nat_rec(
             shift(m, cutoff, amount),
@@ -196,6 +252,24 @@ pub fn subst(t: &Term, depth: usize, image: &Term) -> Term {
         ),
         TermKind::Fst(p) => fst(subst(p, depth, image)),
         TermKind::Snd(p) => snd(subst(p, depth, image)),
+        TermKind::Inductive(name, params) => inductive(
+            name.clone(),
+            params.iter().map(|p| subst(p, depth, image)).collect(),
+        ),
+        TermKind::Con(ind_name, con_name, args) => con(
+            ind_name.clone(),
+            con_name.clone(),
+            args.iter().map(|a| subst(a, depth, image)).collect(),
+        ),
+        TermKind::IndRec(ind_name, motive, cases, scrutinee) => ind_rec(
+            ind_name.clone(),
+            subst(motive, depth, image),
+            cases
+                .iter()
+                .map(|(cname, cbody)| (cname.clone(), subst(cbody, depth + 1, image)))
+                .collect(),
+            subst(scrutinee, depth, image),
+        ),
         TermKind::Succ(n) => succ(subst(n, depth, image)),
         TermKind::NatRec(m, b, s, t0) => nat_rec(
             subst(m, depth, image),

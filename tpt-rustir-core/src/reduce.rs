@@ -65,6 +65,35 @@ pub fn whnf_step(env: &GlobalEnv, t: &Term) -> Option<Term> {
                 _ => None,
             }
         }
+        TermKind::IndRec(ind_name, motive, cases, scrutinee) => {
+            // First try to reduce the scrutinee
+            if let Some(s2) = whnf_step(env, scrutinee) {
+                return Some(term::ind_rec(
+                    ind_name.clone(),
+                    motive.clone(),
+                    cases.clone(),
+                    s2,
+                ));
+            }
+            // Check if scrutinee is a constructor application
+            match &**scrutinee {
+                TermKind::Con(_, con_name, con_args) => {
+                    // Find the matching case
+                    if let Some((_, case_body)) = cases.iter().find(|(cname, _)| cname == con_name)
+                    {
+                        // Apply the case body to the constructor arguments
+                        let mut result = case_body.clone();
+                        for arg in con_args.iter().rev() {
+                            result = term::app(result, arg.clone());
+                        }
+                        Some(result)
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            }
+        }
         TermKind::Let(_, val, body) => Some(term::subst_top(body, val)),
         _ => None,
     }
@@ -91,6 +120,24 @@ pub fn normalize(env: &GlobalEnv, t: &Term) -> Term {
         }
         TermKind::Fst(p) => term::fst(normalize(env, p)),
         TermKind::Snd(p) => term::snd(normalize(env, p)),
+        TermKind::Inductive(name, params) => term::inductive(
+            name.clone(),
+            params.iter().map(|p| normalize(env, p)).collect(),
+        ),
+        TermKind::Con(ind_name, con_name, args) => term::con(
+            ind_name.clone(),
+            con_name.clone(),
+            args.iter().map(|a| normalize(env, a)).collect(),
+        ),
+        TermKind::IndRec(ind_name, motive, cases, scrutinee) => term::ind_rec(
+            ind_name.clone(),
+            normalize(env, motive),
+            cases
+                .iter()
+                .map(|(cname, cbody)| (cname.clone(), normalize(env, cbody)))
+                .collect(),
+            normalize(env, scrutinee),
+        ),
         TermKind::Succ(n) => term::succ(normalize(env, n)),
         TermKind::NatRec(m, b, s, t0) => term::nat_rec(
             normalize(env, m),
@@ -133,6 +180,25 @@ pub fn conv(env: &GlobalEnv, a: &Term, b: &Term) -> bool {
         | (TermKind::Bool, TermKind::Bool)
         | (TermKind::True, TermKind::True)
         | (TermKind::False, TermKind::False) => true,
+        (TermKind::Inductive(n1, p1), TermKind::Inductive(n2, p2)) => {
+            n1 == n2 && p1.len() == p2.len() && p1.iter().zip(p2).all(|(a, b)| conv(env, a, b))
+        }
+        (TermKind::Con(in1, cn1, a1), TermKind::Con(in2, cn2, a2)) => {
+            in1 == in2
+                && cn1 == cn2
+                && a1.len() == a2.len()
+                && a1.iter().zip(a2).all(|(a, b)| conv(env, a, b))
+        }
+        (TermKind::IndRec(in1, m1, c1, s1), TermKind::IndRec(in2, m2, c2, s2)) => {
+            in1 == in2
+                && conv(env, m1, m2)
+                && c1.len() == c2.len()
+                && c1
+                    .iter()
+                    .zip(c2)
+                    .all(|((cn1, b1), (cn2, b2))| cn1 == cn2 && conv(env, b1, b2))
+                && conv(env, s1, s2)
+        }
         (TermKind::Pi(d1, c1), TermKind::Pi(d2, c2)) => conv(env, d1, d2) && conv(env, c1, c2),
         (TermKind::Lambda(d1, b1), TermKind::Lambda(d2, b2)) => {
             conv(env, d1, d2) && conv(env, b1, b2)

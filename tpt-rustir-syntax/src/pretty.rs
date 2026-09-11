@@ -1,6 +1,7 @@
 //! Pretty-printer for core terms: reconstructs readable names for de Bruijn
 //! binders using a simple name-avoiding counter scheme.
 
+use crate::ast::{Expr, ExprKind};
 use tpt_rustir_core::term::{Term, TermKind};
 
 fn fresh_name(names: &[String]) -> String {
@@ -104,9 +105,134 @@ fn go(names: &[String], t: &Term, paren: bool) -> String {
                 true,
             )
         }
+        TermKind::Inductive(name, params) => {
+            let param_strs: Vec<String> = params.iter().map(|p| go(names, p, true)).collect();
+            if param_strs.is_empty() {
+                name.clone()
+            } else {
+                format!("{} {}", name, param_strs.join(" "))
+            }
+        }
+        TermKind::Con(ind_name, con_name, args) => {
+            let arg_strs: Vec<String> = args.iter().map(|a| go(names, a, true)).collect();
+            format!("{}.{} {}", ind_name, con_name, arg_strs.join(" "))
+        }
+        TermKind::IndRec(ind_name, motive, cases, _scrutinee) => {
+            let case_strs: Vec<String> = cases
+                .iter()
+                .map(|(cn, cb)| format!("| {} => {}", cn, go(names, cb, false)))
+                .collect();
+            format!(
+                "elim {} {} with {}",
+                ind_name,
+                go(names, motive, true),
+                case_strs.join(" ")
+            )
+        }
     }
 }
 
 pub fn print(t: &Term) -> String {
     go(&[], t, false)
+}
+
+/// Pretty-print an AST expression
+pub fn print_expr(expr: &Expr) -> String {
+    print_expr_inner(expr, &[])
+}
+
+fn print_expr_inner(expr: &Expr, names: &[String]) -> String {
+    match &expr.kind {
+        ExprKind::Var(name) => name.clone(),
+        ExprKind::NatLit(n) => n.to_string(),
+        ExprKind::Pi(_name, dom, cod) => {
+            let name = fresh_name(names);
+            let mut inner = names.to_vec();
+            inner.push(name.clone());
+            format!(
+                "({name} : {}) -> {}",
+                print_expr_inner(dom, names),
+                print_expr_inner(cod, &inner)
+            )
+        }
+        ExprKind::Sigma(_name, fst_ty, snd_ty) => {
+            let name = fresh_name(names);
+            let mut inner = names.to_vec();
+            inner.push(name.clone());
+            format!(
+                "({name} : {}) * {}",
+                print_expr_inner(fst_ty, names),
+                print_expr_inner(snd_ty, &inner)
+            )
+        }
+        ExprKind::Lambda(_name, dom, body) => {
+            let name = fresh_name(names);
+            let mut inner = names.to_vec();
+            inner.push(name.clone());
+            format!(
+                "\\{name} : {} => {}",
+                print_expr_inner(dom, names),
+                print_expr_inner(body, &inner)
+            )
+        }
+        ExprKind::App(f, a) => format!(
+            "{} {}",
+            print_expr_inner(f, names),
+            print_expr_inner(a, names)
+        ),
+        ExprKind::Pair(a, b) => format!(
+            "({}, {})",
+            print_expr_inner(a, names),
+            print_expr_inner(b, names)
+        ),
+        ExprKind::Let(_name, ann_ty, val, body) => {
+            let name = fresh_name(names);
+            let mut inner = names.to_vec();
+            inner.push(name.clone());
+            format!(
+                "let {name} : {} = {} in {}",
+                print_expr_inner(ann_ty, names),
+                print_expr_inner(val, names),
+                print_expr_inner(body, &inner)
+            )
+        }
+        ExprKind::Ann(inner, ty) => format!(
+            "{} : {}",
+            print_expr_inner(inner, names),
+            print_expr_inner(ty, names)
+        ),
+        ExprKind::InductiveDecl(name, params, ty, constructors) => {
+            let param_strs: Vec<String> = params
+                .iter()
+                .map(|(n, t)| format!("{}: {}", n, print_expr_inner(t, names)))
+                .collect();
+            let con_strs: Vec<String> = constructors
+                .iter()
+                .map(|c| print_expr_inner(c, names))
+                .collect();
+            format!(
+                "inductive {} ({}) : {} where {} end",
+                name,
+                param_strs.join(", "),
+                print_expr_inner(ty, names),
+                con_strs.join("; ")
+            )
+        }
+        ExprKind::ConApp(ind, con, args) => {
+            let arg_strs: Vec<String> = args.iter().map(|a| print_expr_inner(a, names)).collect();
+            format!("{}.{} {}", ind, con, arg_strs.join(" "))
+        }
+        ExprKind::Elim(ind, motive, cases) => {
+            let case_strs: Vec<String> = cases
+                .iter()
+                .map(|(cn, cb)| format!("| {} => {}", cn, print_expr_inner(cb, names)))
+                .collect();
+            format!(
+                "elim {} {} with {}",
+                ind,
+                print_expr_inner(motive, names),
+                case_strs.join(" ")
+            )
+        }
+    }
 }

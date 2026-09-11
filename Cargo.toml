@@ -8,6 +8,12 @@ members = [
     "tpt-rustir-macros",
     "tpt-rustir-cli",
 ]
+# tpt-rustir-mir-ingest is deliberately NOT a member: it links against
+# rustc's own internal crates (rustc_driver) and requires the pinned nightly
+# toolchain's rustc-dev/llvm-tools components, so it's kept out of the main
+# workspace's default `cargo build`/`cargo test` entirely. See its own crate
+# doc comment for how to build/test it directly.
+exclude = ["tpt-rustir-mir-ingest"]
 
 [workspace.package]
 version = "0.1.0"

@@ -3,9 +3,9 @@ use tpt_rustir_syntax::{lower, parse_and_lower, parser, pretty};
 
 fn infer_and_print(src: &str) -> (String, String) {
     let expr = parser::parse(src).unwrap_or_else(|e| panic!("parse error in {src:?}: {e:?}"));
-    let term = lower::lower(&lower::Scope::new(), &expr)
+    let mut env = GlobalEnv::new();
+    let term = lower::lower(&lower::Scope::new(), &mut env, &expr)
         .unwrap_or_else(|e| panic!("lowering error in {src:?}: {e}"));
-    let env = GlobalEnv::new();
     let ctx = Vec::new();
     let ty = infer(&env, &ctx, &term).unwrap_or_else(|e| panic!("type error in {src:?}: {e}"));
     let nf = normalize(&env, &term);

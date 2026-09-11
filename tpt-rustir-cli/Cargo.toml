@@ -5,9 +5,10 @@ edition.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
-keywords.workspace = true
-categories.workspace = true
+keywords = ["cargo-subcommand", "formal-verification", "cli", "json-output", "proof-cache"]
+categories = ["development-tools::cargo-plugins", "command-line-utilities"]
 description = "cargo-tpt: the command-line interface for tpt-rustir."
+readme = "README.md"
 
 [[bin]]
 name = "cargo-tpt"
@@ -16,4 +17,10 @@ path = "src/main.rs"
 [dependencies]
 tpt-rustir-core = { workspace = true }
 tpt-rustir-syntax = { workspace = true }
+tpt-rustir-solver = { workspace = true }
 clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+syn = { version = "2", features = ["full", "parsing", "visit"] }
+proc-macro2 = { version = "1", features = ["span-locations"] }

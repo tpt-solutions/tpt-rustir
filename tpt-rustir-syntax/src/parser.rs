@@ -12,13 +12,24 @@
 //!          | "(" expr ("," expr)? ")"                        -- grouping / pair
 //!          | "\" ident ":" expr "=>" expr                    -- lambda
 //!          | "let" ident ":" expr "=" expr "in" expr
+//!          | "inductive" ident "(" params? ")" ":" expr "where" constructor* "end"
+//!          | "elim" ident expr "with" "|" constructor "=>" expr+
 //! ```
 
 use chumsky::prelude::*;
 
 use crate::ast::{Expr, ExprKind};
 
-const KEYWORDS: &[&str] = &["let", "in"];
+const KEYWORDS: &[&str] = &[
+    "let",
+    "in",
+    "inductive",
+    "where",
+    "end",
+    "elim",
+    "with",
+    "constructor",
+];
 
 pub fn parser() -> impl Parser<char, Expr, Error = Simple<char>> {
     let ident = text::ident().padded().try_map(|s: String, span| {
@@ -98,7 +109,87 @@ pub fn parser() -> impl Parser<char, Expr, Error = Simple<char>> {
                 None => a,
             });
 
+        // Constructor declaration: `constructor Name : Type`
+        let constructor_decl = text::keyword("constructor")
+            .padded()
+            .ignore_then(ident)
+            .then_ignore(just(':').padded())
+            .then(expr.clone())
+            .map_with_span(|(name, ty), span| {
+                Expr::new(
+                    ExprKind::ConApp("_".to_string(), name, vec![Box::new(ty)]),
+                    span,
+                )
+            });
+
+        // Inductive declaration: `inductive Name (params) : Type where constructor* end`
+        let inductive_decl = text::keyword("inductive")
+            .padded()
+            .ignore_then(ident)
+            .then(
+                just('(')
+                    .padded()
+                    .ignore_then(
+                        ident
+                            .then_ignore(just(':').padded())
+                            .then(expr.clone())
+                            .map(|(name, ty)| (name, Box::new(ty)))
+                            .separated_by(just(',').padded())
+                            .allow_trailing(),
+                    )
+                    .then_ignore(just(')').padded())
+                    .or_not(),
+            )
+            .then_ignore(just(':').padded())
+            .then(expr.clone())
+            .then_ignore(text::keyword("where").padded())
+            .then(constructor_decl.repeated())
+            .then_ignore(text::keyword("end").padded())
+            .map_with_span(|(((name, params_opt), ty), constructors), span| {
+                let params = params_opt.unwrap_or_default();
+                // Box the constructor expressions
+                let boxed_constructors: Vec<Box<Expr>> =
+                    constructors.into_iter().map(Box::new).collect();
+                Expr::new(
+                    ExprKind::InductiveDecl(name, params, Box::new(ty), boxed_constructors),
+                    span,
+                )
+            });
+
+        // Eliminator: `elim Name motive with | constructor => body ...`
+        let elim_case = just('|')
+            .padded()
+            .ignore_then(ident)
+            .then_ignore(just("=>").padded())
+            .then(expr.clone())
+            .map(|(name, body)| (name, Box::new(body)));
+
+        let elim_expr = text::keyword("elim")
+            .padded()
+            .ignore_then(ident) // inductive name
+            .then(expr.clone()) // motive
+            .then_ignore(text::keyword("with").padded())
+            .then(elim_case.repeated().at_least(1))
+            .map_with_span(|((ind_name, motive), cases), span| {
+                Expr::new(ExprKind::Elim(ind_name, Box::new(motive), cases), span)
+            });
+
+        // Constructor application: `Name.constructor args...`
+        let con_app = ident
+            .then_ignore(just('.').padded())
+            .then(ident)
+            .then(expr.clone().repeated())
+            .map_with_span(|((ind_name, con_name), args), span| {
+                Expr::new(
+                    ExprKind::ConApp(ind_name, con_name, args.into_iter().map(Box::new).collect()),
+                    span,
+                )
+            });
+
         let atom = choice((
+            inductive_decl,
+            elim_expr,
+            con_app,
             dependent_binder,
             paren_group,
             lambda,

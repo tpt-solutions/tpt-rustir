@@ -5,9 +5,12 @@ edition.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
-keywords.workspace = true
-categories.workspace = true
+keywords = ["mir", "stable-mir", "formal-verification", "borrow-checker", "unsafe-rust"]
+categories = ["development-tools", "compilers"]
 description = "Rust bridge: ingests stable_mir, maps Rust types/lifetimes/borrows into tpt-rustir-core, and extracts verified code."
+readme = "README.md"
 
 [dependencies]
 tpt-rustir-core = { workspace = true }
+tpt-rustir-solver = { workspace = true }
+tpt-rustir-syntax = { workspace = true }
